@@ -1,17 +1,23 @@
--- Schema CSDL cho ứng dụng thi trắc nghiệm trực tuyến (SQLite)
+-- =============================================================
+-- schema.sql
+-- Lược đồ CSDL SQLite cho hệ thống thi trắc nghiệm trực tuyến.
+-- Thực thể: users, questions, rooms, results.
+-- Script có tính lũy đẳng (IF NOT EXISTS / INSERT OR IGNORE),
+-- có thể chạy lại nhiều lần mà không làm sai lệch dữ liệu.
+-- =============================================================
 PRAGMA foreign_keys = ON;
 
--- Người dùng
+-- users: tài khoản người dùng; mật khẩu lưu dưới dạng băm SHA-256 (hex)
 CREATE TABLE IF NOT EXISTS users (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     username      TEXT    NOT NULL UNIQUE,
-    password_hash TEXT    NOT NULL,           -- SHA256 dạng hex (64 ký tự)
+    password_hash TEXT    NOT NULL,
     role          TEXT    NOT NULL DEFAULT 'student'
                           CHECK (role IN ('student', 'admin')),
     created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Ngân hàng câu hỏi
+-- questions: ngân hàng câu hỏi 4 phương án, answer ∈ {A, B, C, D}
 CREATE TABLE IF NOT EXISTS questions (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     content    TEXT    NOT NULL,
@@ -25,7 +31,7 @@ CREATE TABLE IF NOT EXISTS questions (
     topic      TEXT
 );
 
--- Phòng thi
+-- rooms: phòng thi; status chuyển trạng thái waiting -> running -> finished
 CREATE TABLE IF NOT EXISTS rooms (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     name           TEXT    NOT NULL,
@@ -38,17 +44,17 @@ CREATE TABLE IF NOT EXISTS rooms (
     created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Kết quả thi
+-- results: kết quả bài làm; room_id = NULL tương ứng chế độ luyện tập
 CREATE TABLE IF NOT EXISTS results (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id      INTEGER NOT NULL REFERENCES users(id),
-    room_id      INTEGER REFERENCES rooms(id),   -- NULL nếu là bài luyện tập
-    score        INTEGER NOT NULL DEFAULT 0,     -- số câu đúng
-    total        INTEGER NOT NULL DEFAULT 0,     -- tổng số câu
+    room_id      INTEGER REFERENCES rooms(id),
+    score        INTEGER NOT NULL DEFAULT 0,
+    total        INTEGER NOT NULL DEFAULT 0,
     submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Dữ liệu mẫu để thử nghiệm
+-- Dữ liệu khởi tạo phục vụ kiểm thử
 INSERT OR IGNORE INTO questions (id, content, option_a, option_b, option_c, option_d, answer, difficulty, topic) VALUES
 (1, 'TCP hoạt động ở tầng nào của mô hình OSI?', 'Tầng 2', 'Tầng 3', 'Tầng 4', 'Tầng 7', 'C', 'easy', 'network'),
 (2, 'Cổng mặc định của HTTP là?', '21', '80', '443', '8080', 'B', 'easy', 'network'),
