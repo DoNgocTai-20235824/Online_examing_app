@@ -1,0 +1,4 @@
+*.o
+server_app
+client_app
+database/*.db
