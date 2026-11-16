@@ -8,17 +8,22 @@
 
 // Danh sách các Mã câu lệnh (Opcode)
 typedef enum {
-    OP_PING         = 100,
-    OP_PONG         = 101,
-    OP_REGISTER     = 1,
-    OP_LOGIN        = 2,
-    OP_CREATE_ROOM  = 3,
-    OP_LIST_ROOMS   = 4,
-    OP_JOIN_ROOM    = 5,
-    OP_START_EXAM   = 6,
-    OP_SUBMIT_EXAM  = 7,
-    OP_PRACTICE_REQ = 8,
-    OP_ERROR        = 99
+    OP_PING             = 100,
+    OP_PONG             = 101,
+    OP_REGISTER         = 1,
+    OP_LOGIN            = 2,
+    OP_CREATE_ROOM      = 3,
+    OP_LIST_ROOMS       = 4,
+    OP_JOIN_ROOM        = 5,
+    OP_START_EXAM       = 6,
+    OP_SUBMIT_EXAM      = 7,
+    OP_PRACTICE_REQ     = 8,
+    OP_LOGOUT           = 9,
+    OP_PRACTICE_SUBMIT  = 10,
+    OP_VIEW_RESULT      = 11,
+    OP_EXAM_QUESTION    = 20,
+    OP_EXAM_RESULT      = 21,
+    OP_ERROR            = 99
 } Opcode;
 
 // Cấu trúc Header cố định 6-byte (Network Byte Order)
