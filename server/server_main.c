@@ -8,6 +8,7 @@
 #include "protocol.h"
 #include "framing.h"
 #include <message.h>
+#include "session.h"
 
 // Khai báo các hàm xử lý Handler từng Opcode
 void handle_login(int connfd, const char* payload);
@@ -25,6 +26,12 @@ void* client_handler(void* arg){
     free(arg);
     // 2. Chuyển luồng sang chế độ Detached để kernel tự dọn dẹp tài nguyên khi luông thoát
     pthread_detach(pthread_self());
+    // Khởi tạo Session riêng chứa send_lock cho Client này
+    ClientSession* session = session_create(connfd);
+    if(!session){
+        close(connfd);
+        return NULL;
+    }
     printf("[SERVER Thread %lu] Bat dau phuc vu client socket_fd = %d\n", (unsigned long)pthread_self(), connfd);
     Header hdr;
     char payload_buf[MAX_PAYLOAD_SIZE];
@@ -44,10 +51,13 @@ void* client_handler(void* arg){
         switch(hdr.opcode){
             case OP_PING:
                 printf("[SERVER] Recv OP_PING -> Replying OP_PONG\n");
-                send_msg(connfd, OP_PONG, "PONG", 5);
+                reply(session, OP_PONG, "PONG", 5);
                 break;
             case OP_LOGIN:
-                handle_login(connfd, payload_buf);
+                // Giả lập xử lý đăng nhập
+                session->is_authencated = 1;
+                snprintf(session->username, sizeof(session->username), "%s", payload_buf);
+                reply(session, OP_LOGIN, "LOGIN_SUCCESS", 14);
                 break;
             case OP_REGISTER:
                 handle_register(connfd, payload_buf);
@@ -69,17 +79,18 @@ void* client_handler(void* arg){
                 break;
             case OP_LOGOUT:
                 printf("[SERVER] Client socket_fd = %d yeu cau Dang xuat.\n", connfd);
-                send_msg(connfd, OP_LOGOUT, "LOGOUT_OK", 10);
+                reply(session, OP_LOGOUT, "LOGOUT_OK", 10);
                 goto cleanup; // Thoát luồng khi đăng xuất
             default:
                 fprintf(stderr, "[SERVER] Unknown Opcode: %d\n", hdr.opcode);
-                send_msg(connfd, OP_ERROR, "UNKNOWN_OPCODE", 15);
+                reply(session, OP_ERROR, "UNKNOWN_OPCODE", 15);
                 break;
         }
     }
     cleanup:
         // Đóng socket kết nối và kết thúc luồng
-        close(connfd);
+        close(session->sockfd);
+        session_destroy(session);
         printf("[SERVER Thread %lu] Hoan tat va giai phong dung luong.\n", (unsigned long)pthread_self());
         return NULL;
 }
