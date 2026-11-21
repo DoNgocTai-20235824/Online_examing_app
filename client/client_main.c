@@ -56,7 +56,19 @@ int main(int argc, char *argv[]){
                 printf("[Đăng ký] Chức năng đang được phát triển.\n");
                 break;
             case 2:
-                printf("[Đăng nhập] Chức năng đang được phát triển.\n");
+                printf("\n[TEST] Đang gửi yêu cầu Đăng nhập thử nghiệm...\n");
+                Header res_hdr;
+                char res_buf[MAX_PAYLOAD_SIZE] = {0};
+                // Gọi hàm client_request của người A (Gửi OP_LOGIN kèm payload "admin:123456")
+                int ret = client_request(sockfd, OP_LOGIN, "admin:secret123", 15, &res_hdr, res_buf, sizeof(res_buf));
+                if(ret == 0){
+                    printf("[TEST] Nhận phản hồi từ Server thành công!\n");
+                    printf(" -> Opcode phản hồi: %d\n", res_hdr.opcode);
+                    printf(" -> Nội dung Server trả về: '%s'\n", res_buf);
+                }
+                else{
+                    printf("[TEST] Lỗi khi gửi/nhận request!\n");
+                }
                 break;
             case 3:
                 printf("[Luyện tập] Chức năng đang được phát triển.\n");

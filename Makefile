@@ -12,7 +12,7 @@ server_app: server/server_main.o common/framing.o common/protocol.o common/messa
 	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS_SERVER)
 
 # Biên dịch Client
-client_app: client/client_main.o client/client_net.o common/framing.o common/protocol.o common/message.o
+client_app: client/client_main.o client/network_client.o client/client_net.o common/framing.o common/protocol.o common/message.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 # Phụ thuộc header của giao thức và message
