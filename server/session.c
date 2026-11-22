@@ -3,6 +3,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+
+// Bảng phiên dùng chung: mỗi ô là một client đang kết nối (NULL = ô trống)
+static ClientSession* g_sessions[MAX_CLIENTS];
+static pthread_mutex_t session_table_lock = PTHREAD_MUTEX_INITIALIZER;
 
 ClientSession* session_create(int sockfd){
     ClientSession* session = (ClientSession*) malloc(sizeof(ClientSession));
@@ -12,6 +18,7 @@ ClientSession* session_create(int sockfd){
     session->user_id = -1;
     session->current_room_id = -1;
     memset(session->username, 0, sizeof(session->username));
+    snprintf(session->ip, sizeof(session->ip), "-");
     session->is_authencated = 0;
 
     // 1. Khởi tạo Mutex cho khóa gửi (send_lock)
@@ -40,4 +47,76 @@ ssize_t reply(ClientSession* session, uint16_t opcode, const void* payload, uint
     // 5. Mở khóa mutex: Cho phép các luồng khác tiếp tục gửi
     pthread_mutex_unlock(&session->send_lock);
     return ret;
+}
+
+/* ------------------------------------------------------------------
+ * Bảng phiên
+ * ------------------------------------------------------------------ */
+
+ClientSession* session_alloc(int sockfd){
+    ClientSession* session = session_create(sockfd);
+    if(!session) return NULL;
+
+    // Lấy IP client từ socket (phục vụ ghi log)
+    struct sockaddr_in addr;
+    socklen_t len = sizeof(addr);
+    if(getpeername(sockfd, (struct sockaddr*)&addr, &len) == 0)
+        inet_ntop(AF_INET, &addr.sin_addr, session->ip, sizeof(session->ip));
+
+    // Tìm ô trống trong bảng và đặt phiên vào
+    pthread_mutex_lock(&session_table_lock);
+    for(int i = 0; i < MAX_CLIENTS; i++){
+        if(g_sessions[i] == NULL){
+            g_sessions[i] = session;
+            pthread_mutex_unlock(&session_table_lock);
+            return session;
+        }
+    }
+    pthread_mutex_unlock(&session_table_lock);
+
+    // Bảng đầy: hủy phiên vừa tạo
+    fprintf(stderr, "[SESSION] Bang phien da day (%d), tu choi socket_fd = %d\n", MAX_CLIENTS, sockfd);
+    session_destroy(session);
+    return NULL;
+}
+
+void session_free(ClientSession* session){
+    if(!session) return;
+
+    // Gỡ khỏi bảng trước để không thread nào tìm thấy phiên này nữa
+    pthread_mutex_lock(&session_table_lock);
+    for(int i = 0; i < MAX_CLIENTS; i++){
+        if(g_sessions[i] == session){
+            g_sessions[i] = NULL;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&session_table_lock);
+
+    session_destroy(session);
+}
+
+ClientSession* session_find_by_username(const char* username){
+    if(!username || username[0] == '\0') return NULL;
+
+    ClientSession* found = NULL;
+    pthread_mutex_lock(&session_table_lock);
+    for(int i = 0; i < MAX_CLIENTS; i++){
+        ClientSession* s = g_sessions[i];
+        if(s && s->is_authencated && strcmp(s->username, username) == 0){
+            found = s;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&session_table_lock);
+    return found;
+}
+
+int session_count(void){
+    int n = 0;
+    pthread_mutex_lock(&session_table_lock);
+    for(int i = 0; i < MAX_CLIENTS; i++)
+        if(g_sessions[i]) n++;
+    pthread_mutex_unlock(&session_table_lock);
+    return n;
 }
