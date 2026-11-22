@@ -8,7 +8,7 @@ DB_OBJS = server/db/db.o server/db/hash.o server/db/db_query.o
 all: server_app client_app
 
 # Biên dịch Server
-server_app: server/server_main.o server/session.o common/framing.o common/protocol.o common/message.o $(DB_OBJS)
+server_app: server/server_main.o server/session.o server/account.o common/framing.o common/protocol.o common/message.o $(DB_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS_SERVER)
 
 # Biên dịch Client

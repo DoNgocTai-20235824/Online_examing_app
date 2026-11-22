@@ -9,10 +9,11 @@
 #include "framing.h"
 #include <message.h>
 #include "session.h"
+#include "account.h"
+#include "db/db.h"
 
 // Khai báo các hàm xử lý Handler từng Opcode
 void handle_login(int connfd, const char* payload);
-void handle_register(int connfd, const char* payload);
 void handle_create_room(int connfd, const char* payload);
 void handle_list_rooms(int connfd);
 void handle_join_room(int connfd, const char* payload);
@@ -60,7 +61,7 @@ void* client_handler(void* arg){
                 reply(session, OP_LOGIN, "LOGIN_SUCCESS", 14);
                 break;
             case OP_REGISTER:
-                handle_register(connfd, payload_buf);
+                handle_register(session, payload_buf);   // account.c
                 break;
             case OP_CREATE_ROOM:
                 handle_create_room(connfd, payload_buf);
@@ -99,11 +100,6 @@ void handle_login(int connfd, const char* payload){
     printf("[AUTH] Handling LOGIN: %s\n", payload);
     // Thành viên B nối CSDL kiểm tra user/pass ở đây
     send_msg(connfd, OP_LOGIN, "LOGIN_SUCCESS", 14);
-}
-
-void handle_register(int connfd, const char* payload){
-    printf("[AUTH] Handling REGISTER: %s\n", payload);
-    send_msg(connfd, OP_REGISTER, "REGISTER_SUCCESS", 17);
 }
 
 void handle_create_room(int connfd, const char* payload){
@@ -160,6 +156,13 @@ int setup_server_socket(int port){
 }
 
 int main(){
+    // Mở CSDL (tự tạo database/exam.db nếu chưa có) và chạy schema tạo bảng
+    if(db_connect(DB_DEFAULT_PATH) != 0 || db_exec_file(DB_SCHEMA_PATH) != 0){
+        fprintf(stderr, "[SERVER] Khong mo duoc CSDL. Hay chay server tu thu muc goc cua project.\n");
+        return EXIT_FAILURE;
+    }
+    printf("[SERVER] Da mo CSDL %s\n", DB_DEFAULT_PATH);
+
     int listenfd = setup_server_socket(DEFAULT_PORT);
     while(1){
         struct sockaddr_in cliaddr;
