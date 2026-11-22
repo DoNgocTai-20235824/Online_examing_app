@@ -27,7 +27,7 @@ void* client_handler(void* arg){
     // 2. Chuyển luồng sang chế độ Detached để kernel tự dọn dẹp tài nguyên khi luông thoát
     pthread_detach(pthread_self());
     // Khởi tạo Session riêng chứa send_lock cho Client này
-    ClientSession* session = session_create(connfd);
+    ClientSession* session = session_alloc(connfd);   // tạo phiên + đưa vào bảng phiên
     if(!session){
         close(connfd);
         return NULL;
@@ -90,7 +90,7 @@ void* client_handler(void* arg){
     cleanup:
         // Đóng socket kết nối và kết thúc luồng
         close(session->sockfd);
-        session_destroy(session);
+        session_free(session);   // gỡ khỏi bảng phiên + giải phóng
         printf("[SERVER Thread %lu] Hoan tat va giai phong dung luong.\n", (unsigned long)pthread_self());
         return NULL;
 }
