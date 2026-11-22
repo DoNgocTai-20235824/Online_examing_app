@@ -42,7 +42,8 @@ void* client_handler(void* arg){
         // Nhận gói tin nguyên vẹn (Header + Payload) từ Client
         ssize_t bytes_read = recv_msg(connfd, &hdr, payload_buf, sizeof(payload_buf));
         // Client ngắt kết nỗi (EOF) hoặc có lỗi Socket -> Thoát vòng lặp
-        if(bytes_read <= 0){
+        // (bytes_read == 0 là gói hợp lệ có payload rỗng, vd OP_LOGOUT, OP_LIST_ROOMS)
+        if(bytes_read < 0){
             printf("[SERVER Thread %lu] Client socket_fd = %d ngat ket noi.\n", (unsigned long)pthread_self(), connfd);
             break;
         }
@@ -75,17 +76,15 @@ void* client_handler(void* arg){
                 handle_submit_exam(connfd, payload_buf);
                 break;
             case OP_LOGOUT:
-                printf("[SERVER] Client socket_fd = %d yeu cau Dang xuat.\n", connfd);
-                reply(session, OP_LOGOUT, "LOGOUT_OK", 10);
-                goto cleanup; // Thoát luồng khi đăng xuất
+                handle_logout(session);                  // account.c (giữ kết nối)
+                break;
             default:
                 fprintf(stderr, "[SERVER] Unknown Opcode: %d\n", hdr.opcode);
                 reply(session, OP_ERROR, "UNKNOWN_OPCODE", 15);
                 break;
         }
     }
-    cleanup:
-        // Đóng socket kết nối và kết thúc luồng
+        // Client ngắt kết nối: đóng socket, gỡ phiên khỏi bảng (giải phóng tài khoản)
         close(session->sockfd);
         session_free(session);   // gỡ khỏi bảng phiên + giải phóng
         printf("[SERVER Thread %lu] Hoan tat va giai phong dung luong.\n", (unsigned long)pthread_self());

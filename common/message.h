@@ -22,7 +22,8 @@ ssize_t send_msg(int sockfd, uint16_t opcode, const void* payload, uint32_t payl
  * @param hdr Con trỏ nhận thông tin Header (đã chuyển về Host byte order)
  * @param payload_buf Bộ đệm nhận dữ liệu payload
  * @param max_payload_len Kích thước tối đa của payload_buf
- * @return Số byte payload đã đọc, 0 nếu client ngắt kết nối (EOF), hoặc -1 nếu có lỗi.
+ * @return Số byte payload đã đọc (0 = gói hợp lệ có payload rỗng, vd OP_LOGOUT),
+ *         hoặc -1 nếu client ngắt kết nối (EOF) / lỗi socket / gói sai.
  */
 ssize_t recv_msg(int sockfd, Header *hdr, void* payload_buf, uint32_t max_payload_len);
 #endif

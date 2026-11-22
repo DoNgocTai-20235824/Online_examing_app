@@ -129,3 +129,19 @@ void handle_login(ClientSession *s, const char *payload){
     }
     printf("[ACCOUNT] %s LOGIN user=%s -> %d\n", s->ip, username, code);
 }
+
+void handle_logout(ClientSession *s){
+    /* Chưa đăng nhập thì không có gì để đăng xuất */
+    if(!s->is_authencated){
+        send_status(s, OP_LOGOUT, ST_NOT_LOGGED_IN, "Not logged in");
+        return;
+    }
+
+    char username[sizeof(s->username)];
+    snprintf(username, sizeof(username), "%s", s->username);
+
+    /* Xóa trạng thái đăng nhập; kết nối vẫn mở, client quay về menu Đăng ký / Đăng nhập */
+    session_logout(s);
+    send_status(s, OP_LOGOUT, ST_OK, "Bye");
+    printf("[ACCOUNT] %s LOGOUT user=%s -> %d\n", s->ip, username, ST_OK);
+}

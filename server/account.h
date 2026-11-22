@@ -26,4 +26,10 @@ void handle_register(ClientSession *s, const char *payload);
  */
 void handle_login(ClientSession *s, const char *payload);
 
+/**
+ * @brief  Xử lý OP_LOGOUT (payload rỗng). Xóa trạng thái đăng nhập, GIỮ kết nối.
+ *         Phản hồi: "100|Bye" | "204|Not logged in".
+ */
+void handle_logout(ClientSession *s);
+
 #endif
