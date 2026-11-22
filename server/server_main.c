@@ -13,7 +13,6 @@
 #include "db/db.h"
 
 // Khai báo các hàm xử lý Handler từng Opcode
-void handle_login(int connfd, const char* payload);
 void handle_create_room(int connfd, const char* payload);
 void handle_list_rooms(int connfd);
 void handle_join_room(int connfd, const char* payload);
@@ -55,10 +54,7 @@ void* client_handler(void* arg){
                 reply(session, OP_PONG, "PONG", 5);
                 break;
             case OP_LOGIN:
-                // Giả lập xử lý đăng nhập
-                session->is_authencated = 1;
-                snprintf(session->username, sizeof(session->username), "%s", payload_buf);
-                reply(session, OP_LOGIN, "LOGIN_SUCCESS", 14);
+                handle_login(session, payload_buf);      // account.c
                 break;
             case OP_REGISTER:
                 handle_register(session, payload_buf);   // account.c
@@ -94,12 +90,6 @@ void* client_handler(void* arg){
         session_free(session);   // gỡ khỏi bảng phiên + giải phóng
         printf("[SERVER Thread %lu] Hoan tat va giai phong dung luong.\n", (unsigned long)pthread_self());
         return NULL;
-}
-
-void handle_login(int connfd, const char* payload){
-    printf("[AUTH] Handling LOGIN: %s\n", payload);
-    // Thành viên B nối CSDL kiểm tra user/pass ở đây
-    send_msg(connfd, OP_LOGIN, "LOGIN_SUCCESS", 14);
 }
 
 void handle_create_room(int connfd, const char* payload){
