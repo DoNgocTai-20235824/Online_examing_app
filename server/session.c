@@ -83,6 +83,12 @@ ClientSession* session_alloc(int sockfd){
 void session_free(ClientSession* session){
     if(!session) return;
 
+    // Client ngắt kết nối khi đang đăng nhập -> giải phóng tài khoản
+    // để có thể đăng nhập lại ở nơi khác
+    if(session->is_authencated)
+        printf("[SESSION] %s user=%s ngat ket noi -> giai phong phien\n",
+               session->ip, session->username);
+
     // Gỡ khỏi bảng trước để không thread nào tìm thấy phiên này nữa
     pthread_mutex_lock(&session_table_lock);
     for(int i = 0; i < MAX_CLIENTS; i++){
@@ -130,6 +136,19 @@ int session_login(ClientSession* session, int user_id, const char* username){
     session->is_authencated = 1;
     pthread_mutex_unlock(&session_table_lock);
     return 0;
+}
+
+void session_logout(ClientSession* session){
+    if(!session) return;
+
+    pthread_mutex_lock(&session_table_lock);
+    session->is_authencated = 0;
+    session->user_id = -1;
+    memset(session->username, 0, sizeof(session->username));
+    // Rời phòng: khi có module phòng thi (tuần 3-4) sẽ gọi hàm rời phòng
+    // (chỉ khi phòng còn WAITING) trước khi đặt lại current_room_id.
+    session->current_room_id = -1;
+    pthread_mutex_unlock(&session_table_lock);
 }
 
 int session_count(void){

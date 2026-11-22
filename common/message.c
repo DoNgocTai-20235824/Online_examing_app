@@ -31,8 +31,8 @@ ssize_t recv_msg(int sockfd, Header* hdr, void* payload_buf, uint32_t max_payloa
     if(!hdr) return -1;
     // 1. Đọc đủ 6 bytes Header(chống xé gói TCP)
     ssize_t ret = readn(sockfd, hdr, sizeof(Header));
-    if(ret <= 0){
-        return ret; // ret = 0 (Client disconnect) hoặc ret < 0 (lỗi socket)
+    if(ret != (ssize_t)sizeof(Header)){
+        return -1; // Client ngắt kết nối (EOF), header bị cắt cụt hoặc lỗi socket
     }
 
     // 2. Chuyển Header từ Network về Host Byte Order

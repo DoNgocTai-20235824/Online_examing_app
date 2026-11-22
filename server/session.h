@@ -68,6 +68,12 @@ ClientSession* session_find_by_username(const char* username);
 int session_login(ClientSession* session, int user_id, const char* username);
 
 /**
+ * Xóa trạng thái đăng nhập của phiên (dùng cho OP_LOGOUT); kết nối vẫn giữ.
+ * Sau lệnh này tài khoản có thể đăng nhập lại ở nơi khác.
+ */
+void session_logout(ClientSession* session);
+
+/**
  * Số phiên đang có trong bảng (đếm cả phiên chưa đăng nhập).
  */
 int session_count(void);
