@@ -83,6 +83,14 @@ int db_register_user(const char *username, const char *password){
     return ST_UNKNOWN_ERROR;
 }
 
+int db_verify_login(const char *username, const char *password, int *out_user_id){
+    int id = db_check_login(username, password);   /* id > 0 | 0 sai | -1 lỗi */
+    if(id < 0) return ST_UNKNOWN_ERROR;
+    if(id == 0) return ST_WRONG_LOGIN;             /* Không báo rõ sai tên hay sai mật khẩu */
+    if(out_user_id) *out_user_id = id;
+    return ST_OK;
+}
+
 int db_check_login(const char *username, const char *password){
     User u;
     int rc = db_get_user_by_username(username, &u);

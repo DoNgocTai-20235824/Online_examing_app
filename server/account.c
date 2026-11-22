@@ -38,26 +38,34 @@ static int valid_password(const char *p){
     return 1;
 }
 
-void handle_register(ClientSession *s, const char *payload){
-    /* 1. Chép payload vào bộ đệm riêng (giới hạn độ dài) để tách trường */
-    char buf[USERNAME_MAX_LEN + PASSWORD_MAX_LEN + 8];
-    size_t plen = payload ? strnlen(payload, sizeof(buf)) : 0;
-    if(plen == 0 || plen >= sizeof(buf)){
-        send_status(s, OP_REGISTER, ST_BAD_REQUEST, "Invalid format, expected username|password");
-        return;
-    }
+/* Bộ đệm đủ chứa "username|password" dài nhất hợp lệ */
+#define CRED_BUF_LEN (USERNAME_MAX_LEN + PASSWORD_MAX_LEN + 8)
+
+/* Chép payload vào buf rồi tách "username|password" tại dấu '|' đầu tiên.
+   @return 0 nếu đúng định dạng, -1 nếu rỗng / quá dài / thiếu dấu '|'. */
+static int split_credentials(const char *payload, char buf[CRED_BUF_LEN],
+                             const char **username, const char **password){
+    size_t plen = payload ? strnlen(payload, CRED_BUF_LEN) : 0;
+    if(plen == 0 || plen >= CRED_BUF_LEN) return -1;
     memcpy(buf, payload, plen);
     buf[plen] = '\0';
 
-    /* 2. Tách "username|password" tại dấu '|' đầu tiên */
     char *sep = strchr(buf, '|');
-    if(!sep){
+    if(!sep) return -1;
+    *sep = '\0';
+    *username = buf;
+    *password = sep + 1;
+    return 0;
+}
+
+void handle_register(ClientSession *s, const char *payload){
+    /* 1-2. Tách "username|password" */
+    char buf[CRED_BUF_LEN];
+    const char *username, *password;
+    if(split_credentials(payload, buf, &username, &password) != 0){
         send_status(s, OP_REGISTER, ST_BAD_REQUEST, "Invalid format, expected username|password");
         return;
     }
-    *sep = '\0';
-    const char *username = buf;
-    const char *password = sep + 1;
 
     /* 3. Kiểm tra dữ liệu đầu vào */
     if(!valid_username(username)){
@@ -85,4 +93,39 @@ void handle_register(ClientSession *s, const char *payload){
     }
     /* Không bao giờ in mật khẩu ra màn hình / log */
     printf("[ACCOUNT] %s REGISTER user=%s -> %d\n", s->ip, username, code);
+}
+
+void handle_login(ClientSession *s, const char *payload){
+    /* 0. Kết nối này đã đăng nhập rồi thì phải đăng xuất trước */
+    if(s->is_authencated){
+        send_status(s, OP_LOGIN, ST_ALREADY_LOGGED, "Already logged in on this connection, logout first");
+        return;
+    }
+
+    /* 1. Tách "username|password" */
+    char buf[CRED_BUF_LEN];
+    const char *username, *password;
+    if(split_credentials(payload, buf, &username, &password) != 0 ||
+       username[0] == '\0' || password[0] == '\0'){
+        send_status(s, OP_LOGIN, ST_BAD_REQUEST, "Invalid format, expected username|password");
+        return;
+    }
+
+    /* 2. So mật khẩu băm trong CSDL -> sai thì 202 */
+    int user_id = -1;
+    int code = db_verify_login(username, password, &user_id);
+    if(code == ST_WRONG_LOGIN){
+        send_status(s, OP_LOGIN, ST_WRONG_LOGIN, "Wrong username or password");
+    } else if(code != ST_OK){
+        send_status(s, OP_LOGIN, ST_UNKNOWN_ERROR, "Server error");
+    }
+    /* 3. Đúng mật khẩu: gắn tài khoản vào phiên; đang đăng nhập nơi khác thì 203.
+          (Kiểm tra mật khẩu TRƯỚC để người lạ không dò được ai đang online.) */
+    else if(session_login(s, user_id, username) != 0){
+        code = ST_ALREADY_LOGGED;
+        send_status(s, OP_LOGIN, ST_ALREADY_LOGGED, "Account is logged in elsewhere");
+    } else {
+        send_status(s, OP_LOGIN, ST_OK, "Login OK");
+    }
+    printf("[ACCOUNT] %s LOGIN user=%s -> %d\n", s->ip, username, code);
 }

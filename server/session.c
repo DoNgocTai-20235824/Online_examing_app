@@ -112,6 +112,26 @@ ClientSession* session_find_by_username(const char* username){
     return found;
 }
 
+int session_login(ClientSession* session, int user_id, const char* username){
+    if(!session || !username) return -1;
+
+    pthread_mutex_lock(&session_table_lock);
+    // 1. Có phiên KHÁC đang đăng nhập bằng username này không?
+    for(int i = 0; i < MAX_CLIENTS; i++){
+        ClientSession* s = g_sessions[i];
+        if(s && s != session && s->is_authencated && strcmp(s->username, username) == 0){
+            pthread_mutex_unlock(&session_table_lock);
+            return -1;
+        }
+    }
+    // 2. Chưa có -> gán thông tin đăng nhập (vẫn đang giữ khóa)
+    session->user_id = user_id;
+    snprintf(session->username, sizeof(session->username), "%s", username);
+    session->is_authencated = 1;
+    pthread_mutex_unlock(&session_table_lock);
+    return 0;
+}
+
 int session_count(void){
     int n = 0;
     pthread_mutex_lock(&session_table_lock);

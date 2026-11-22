@@ -60,6 +60,14 @@ void session_free(ClientSession* session);
 ClientSession* session_find_by_username(const char* username);
 
 /**
+ * Đánh dấu phiên đã đăng nhập bằng username này — kiểm tra trùng và gán
+ * được làm trong CÙNG một lần khóa bảng, nên 2 nơi đăng nhập cùng lúc
+ * thì chỉ 1 nơi thành công.
+ * @return 0 nếu thành công; -1 nếu username đang đăng nhập ở phiên khác.
+ */
+int session_login(ClientSession* session, int user_id, const char* username);
+
+/**
  * Số phiên đang có trong bảng (đếm cả phiên chưa đăng nhập).
  */
 int session_count(void);
