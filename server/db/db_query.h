@@ -47,6 +47,14 @@ int db_get_user_by_username(const char *username, User *out);
 int db_create_user(const char *username, const char *password);
 
 /**
+ * @brief  Đăng ký tài khoản (dùng cho OP_REGISTER), an toàn khi nhiều luồng gọi cùng lúc.
+ *         Mật khẩu được băm SHA-256 trước khi lưu.
+ * @return ST_OK (100): thành công; ST_USER_EXISTS (201): username đã tồn tại;
+ *         ST_UNKNOWN_ERROR (999): lỗi CSDL.
+ */
+int db_register_user(const char *username, const char *password);
+
+/**
  * @brief  Xác thực thông tin đăng nhập.
  * @return id người dùng nếu hợp lệ; 0: sai thông tin; -1: lỗi.
  */
