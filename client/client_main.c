@@ -4,41 +4,25 @@
  *
  * Cách dùng: ./client_app [host] [port]
  * Mặc định: host = 127.0.0.1, port = DEFAULT_PORT.
+ *
+ * Hai trạng thái menu:
+ *   - Chưa đăng nhập: Đăng ký / Đăng nhập / Thoát
+ *   - Đã đăng nhập : Luyện tập, phòng thi, ... / Đăng xuất / Thoát
  */
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <signal.h>
 #include "protocol.h"
 #include "client_net.h"
-
-/**
- * @brief  Đọc một lựa chọn số nguyên từ stdin.
- * @return Giá trị đã nhập; -1: đầu vào không hợp lệ; -2: EOF.
- */
-static int read_choice(void){
-    char line[32];
-    if(!fgets(line, sizeof(line), stdin)) return -2;
-    char *end;
-    long v = strtol(line, &end, 10);
-    if(end == line) return -1;
-    return (int)v;
-}
-
-/** @brief Hiển thị menu chính. */
-static void print_main_menu(void){
-    printf("\n========== THI TRẮC NGHIỆM ONLINE ==========\n");
-    printf("  1. Đăng ký\n");
-    printf("  2. Đăng nhập\n");
-    printf("  3. Luyện tập\n");
-    printf("  0. Thoát\n");
-    printf("============================================\n");
-    printf("Lựa chọn: ");
-    fflush(stdout);
-}
+#include "ui.h"
 
 int main(int argc, char *argv[]){
     const char *host = (argc > 1) ? argv[1] : "127.0.0.1";
     int port = (argc > 2) ? atoi(argv[2]) : DEFAULT_PORT;
+
+    /* Server tắt giữa chừng: ghi vào socket đã đóng sinh SIGPIPE làm client chết
+       im lặng. Bỏ qua tín hiệu để send_msg trả lỗi -> in "Mất kết nối". */
+    signal(SIGPIPE, SIG_IGN);
 
     int sockfd = client_connect(host, port);
     if(sockfd < 0){
@@ -47,30 +31,54 @@ int main(int argc, char *argv[]){
     }
     printf("Đã kết nối tới server %s:%d\n", host, port);
 
+    char username[UI_USERNAME_MAX + 1] = "";
+    int logged_in = 0;
     int running = 1;
-    while(running){
-        print_main_menu();
-        int choice = read_choice();
-        switch(choice){
-            case 1:
-                printf("[Đăng ký] Chức năng đang được phát triển.\n");
-                break;
-            case 2:
-                printf("[Đăng nhập] Chức năng đang được phát triển.\n");
-                break;
-            case 3:
-                printf("[Luyện tập] Chức năng đang được phát triển.\n");
-                break;
-            case 0:
-            case -2:    /* EOF  được xử lý như lệnh thoát */
-                running = 0;
-                break;
-            default:
-                printf("Lựa chọn không hợp lệ, vui lòng thử lại.\n");
+    int rc = 0;                         /* -1 = mất kết nối tới server */
+
+    while(running && rc >= 0){
+        if(!logged_in){
+            /* ----- Menu khi chưa đăng nhập ----- */
+            ui_print_guest_menu();
+            switch(ui_read_choice()){
+                case 1:
+                    rc = ui_register_screen(sockfd);
+                    break;
+                case 2:
+                    rc = ui_login_screen(sockfd, username);
+                    if(rc == 1) logged_in = 1;
+                    break;
+                case 0:
+                case -2:                /* EOF (Ctrl+D) được xử lý như lệnh thoát */
+                    running = 0;
+                    break;
+                default:
+                    printf("Lựa chọn không hợp lệ, vui lòng thử lại.\n");
+            }
+        } else {
+            /* ----- Menu khi đã đăng nhập ----- */
+            ui_print_user_menu(username);
+            int choice = ui_read_choice();
+            switch(choice){
+                case 1: case 2: case 3: case 4: case 5: case 6:
+                    printf("Chức năng đang được phát triển.\n");
+                    break;
+                case 7:
+                    rc = ui_logout(sockfd);
+                    if(rc == 1) logged_in = 0;   /* Quay về menu Đăng ký / Đăng nhập */
+                    break;
+                case 0:
+                case -2:
+                    running = 0;
+                    break;
+                default:
+                    printf("Lựa chọn không hợp lệ, vui lòng thử lại.\n");
+            }
         }
     }
 
+    if(rc < 0) printf("\nMất kết nối tới server.\n");
     client_disconnect(sockfd);
     printf("Đã ngắt kết nối. Tạm biệt!\n");
-    return 0;
+    return rc < 0 ? 1 : 0;
 }

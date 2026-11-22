@@ -3,7 +3,9 @@
  * @brief   Cài đặt kết nối TCP phía client (xem client_net.h).
  */
 #include "client_net.h"
+#include "message.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -39,4 +41,28 @@ int client_connect(const char *host, int port){
 
 void client_disconnect(int sockfd){
     if(sockfd >= 0) close(sockfd);
+}
+
+int client_request(int sockfd, uint16_t opcode, const char *payload,
+                   char *resp, size_t resp_cap){
+    if(!resp || resp_cap == 0) return -1;
+    resp[0] = '\0';
+
+    /* 1. Gửi yêu cầu: header 6 byte + payload */
+    uint32_t len = payload ? (uint32_t)strlen(payload) : 0;
+    if(send_msg(sockfd, opcode, payload, len) < 0) return -1;
+
+    /* 2. Chờ phản hồi; bỏ qua gói không đúng opcode (vd tin server tự gửi) */
+    char buf[MAX_PAYLOAD_SIZE + 1];
+    Header hdr;
+    for(;;){
+        ssize_t n = recv_msg(sockfd, &hdr, buf, MAX_PAYLOAD_SIZE);
+        if(n < 0) return -1;                       /* Mất kết nối */
+        buf[n] = '\0';
+        if(hdr.opcode == opcode || hdr.opcode == OP_ERROR) break;
+    }
+    snprintf(resp, resp_cap, "%s", buf);
+
+    /* 3. Mã trạng thái là số đứng trước dấu '|' đầu tiên ("100|Login OK") */
+    return atoi(buf);
 }
