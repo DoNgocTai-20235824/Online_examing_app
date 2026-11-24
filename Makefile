@@ -8,11 +8,11 @@ DB_OBJS = server/db/db.o server/db/hash.o server/db/db_query.o
 all: server_app client_app
 
 # Biên dịch Server
-server_app: server/server_main.o common/framing.o common/protocol.o common/message.o $(DB_OBJS)
+server_app: server/server_main.o server/session.o server/account.o common/framing.o common/protocol.o common/message.o $(DB_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS_SERVER)
 
 # Biên dịch Client
-client_app: client/client_main.o client/network_client.o client/client_net.o common/framing.o common/protocol.o common/message.o
+client_app: client/client_main.o client/client_net.o client/ui.o common/framing.o common/protocol.o common/message.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 # Phụ thuộc header của giao thức và message
@@ -26,4 +26,4 @@ common/message.o: common/message.c common/message.h common/protocol.h common/fra
 clean:
 	rm -f server/*.o server/db/*.o client/*.o common/*.o server_app client_app
 
-.PHONY: all clean
+.PHONY: all clean

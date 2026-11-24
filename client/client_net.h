@@ -5,8 +5,8 @@
 #ifndef CLIENT_NET_H
 #define CLIENT_NET_H
 
+#include <stddef.h>
 #include <stdint.h>
-#include "protocol.h"
 
 /**
  * @brief  Tạo socket TCP (IPv4) và kết nối tới server.
@@ -22,8 +22,10 @@ int client_connect(const char *host, int port);
 void client_disconnect(int sockfd);
 
 /**
- * @brief Ham gui request va ngu cho phan hoi tu Server (Thread-safe voi Cond Var)
+ * @brief Gửi yêu cầu và chờ phản hồi, do luồng nhận nền chuyển tới.
+ * @return Mã trạng thái đầu phản hồi; -1 nếu kết nối lỗi.
  */
-int client_request(int sockfd, uint16_t req_opcode, const void* req_payload, uint32_t req_len, Header* out_hdr, char* out_payload_buf, uint32_t max_buf_len);
+int client_request(int sockfd, uint16_t opcode, const char *payload,
+                   char *resp, size_t resp_cap);
 
 #endif

@@ -4,6 +4,7 @@
  */
 #include "db_query.h"
 #include "db.h"
+#include "status.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -63,6 +64,31 @@ int db_create_user(const char *username, const char *password){
     }
     sqlite3_finalize(st);
     return ret;
+}
+
+int db_register_user(const char *username, const char *password){
+    sqlite3 *db = db_handle();
+    if(!db) return ST_UNKNOWN_ERROR;
+
+    /* Giữ mutex của kết nối trong suốt INSERT + đọc mã lỗi: nếu không, luồng khác
+       có thể chen vào giữa và ghi đè mã lỗi UNIQUE trước khi ta kịp đọc.
+       (Mutex này là loại đệ quy nên db_create_user khóa lại bên trong vẫn an toàn.) */
+    sqlite3_mutex *m = sqlite3_db_mutex(db);
+    sqlite3_mutex_enter(m);
+    int rc = db_create_user(username, password);
+    sqlite3_mutex_leave(m);
+
+    if(rc > 0)  return ST_OK;            /* rc = id người dùng mới            */
+    if(rc == 0) return ST_USER_EXISTS;   /* Vi phạm UNIQUE(username)          */
+    return ST_UNKNOWN_ERROR;
+}
+
+int db_verify_login(const char *username, const char *password, int *out_user_id){
+    int id = db_check_login(username, password);   /* id > 0 | 0 sai | -1 lỗi */
+    if(id < 0) return ST_UNKNOWN_ERROR;
+    if(id == 0) return ST_WRONG_LOGIN;             /* Không báo rõ sai tên hay sai mật khẩu */
+    if(out_user_id) *out_user_id = id;
+    return ST_OK;
 }
 
 int db_check_login(const char *username, const char *password){
