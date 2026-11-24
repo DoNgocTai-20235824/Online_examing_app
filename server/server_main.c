@@ -44,6 +44,13 @@ static void* client_handler(void* arg){
 
         printf("[SERVER Thread %lu] Recv Opcode: %d, Length: %u\n",
                (unsigned long)pthread_self(), hdr.opcode, hdr.payload_len);
+        int perm = check_permission(session, hdr.opcode);
+        if(perm == 204){
+            printf("[SECURITY] Client fd = %d bị từ chối Opcode %d: Chưa đăng nhập (204)\n", session->sockfd, hdr.opcode);
+            char err_msg[] = "204|Not logged in";
+            reply(session, hdr.opcode, err_msg, sizeof(err_msg) - 1);
+            continue; // Bỏ qua switch, quay lại chờ request tiếp theo
+        }
         switch(hdr.opcode){
             case OP_PING:
                 reply(session, OP_PONG, "PONG", 5);
