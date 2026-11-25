@@ -159,3 +159,17 @@ int session_count(void){
     pthread_mutex_unlock(&session_table_lock);
     return n;
 }
+
+int check_permission(ClientSession* session, uint16_t opcode){
+    if(!session) return 204;
+
+    // 1. Các lệnh công khai cho phép gọi khi chưa đăng nhập
+    if(opcode == OP_REGISTER || opcode == OP_LOGIN || opcode == OP_PING){
+        return 100;
+    }
+    // 2. Yêu cầu đăng nhập nhưng cố tình gọi các chức năng khác -> Từ chối (204)
+    if(!session->is_authencated){
+        return 204;
+    }
+    return 100;
+}

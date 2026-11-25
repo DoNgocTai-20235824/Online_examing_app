@@ -22,17 +22,8 @@ int client_connect(const char *host, int port);
 void client_disconnect(int sockfd);
 
 /**
- * @brief  Gửi một yêu cầu và chờ phản hồi cùng opcode từ server.
- *         Mọi màn hình client đều gửi/nhận qua hàm này.
- *
- *         Hiện tại: gửi xong đọc phản hồi ngay (đồng bộ).
- *         Khi có luồng nhận (recv_thread) của Tài: thay thân hàm bằng
- *         send_msg() + wait_response(op), các màn hình không phải sửa.
- *
- * @param  payload   Chuỗi payload (NULL hoặc "" nếu rỗng).
- * @param  resp      Bộ đệm nhận payload phản hồi (đã kết thúc bằng '\0').
- * @param  resp_cap  Kích thước bộ đệm resp.
- * @return Mã trạng thái đầu phản hồi (100, 201, ...); -1 nếu mất kết nối.
+ * @brief Gửi yêu cầu và chờ phản hồi, do luồng nhận nền chuyển tới.
+ * @return Mã trạng thái đầu phản hồi; -1 nếu kết nối lỗi.
  */
 int client_request(int sockfd, uint16_t opcode, const char *payload,
                    char *resp, size_t resp_cap);

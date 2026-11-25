@@ -78,4 +78,10 @@ void session_logout(ClientSession* session);
  */
 int session_count(void);
 
+/**
+ * @brief Kiểm tra quyền truy cập tập trung của Session trước khi xử lý Opcode.
+ * @return 100 nếu hợp lệ, 204 nếu chưa đăng nhập.
+ */
+int check_permission(ClientSession* session, uint16_t opcode);
+
 #endif
