@@ -1,12 +1,11 @@
 #include "room.h"
 #include "status.h"
-#include <stdint.h>
+#include "db/db_query.h"
 #include <stdio.h>
 #include <string.h>
 
 static Room g_rooms[MAX_ROOMS];
 static size_t g_room_count;
-static int g_next_room_id = 1;
 
 pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -35,14 +34,22 @@ int room_create(ClientSession *owner, const char *name, int num_questions,
         pthread_mutex_unlock(&g_lock);
         return ST_ROOM_BAD_STATE;
     }
-    if(g_room_count == MAX_ROOMS || g_next_room_id == INT32_MAX){
+    if(g_room_count == MAX_ROOMS){
         pthread_mutex_unlock(&g_lock);
         return ST_UNKNOWN_ERROR;
     }
 
+    int room_id;
+    int db_status = db_create_room(name, owner->user_id, num_questions,
+                                   duration, &room_id);
+    if(db_status != ST_OK){
+        pthread_mutex_unlock(&g_lock);
+        return db_status;
+    }
+
     Room *room = &g_rooms[g_room_count];
     memset(room, 0, sizeof(*room));
-    room->id = g_next_room_id++;
+    room->id = room_id;
     snprintf(room->name, sizeof(room->name), "%s", name);
     snprintf(room->owner, sizeof(room->owner), "%s", owner->username);
     room->num_questions = num_questions;
