@@ -17,7 +17,7 @@ client_app: client/client_main.o client/client_net.o client/ui.o common/framing.
 
 # Phụ thuộc header của giao thức và message
 client/client_main.o server/server_main.o common/protocol.o: common/protocol.h
-server/room.o: server/room.h server/session.h
+server/room.o: server/room.h server/session.h server/db/db_query.h
 common/message.o: common/message.c common/message.h common/protocol.h common/framing.h
 
 # Biên dịch file object
