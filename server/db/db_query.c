@@ -1,6 +1,6 @@
 /**
  * @file    db_query.c
- * @brief   Cài đặt các truy vấn người dùng và câu hỏi (xem db_query.h).
+ * @brief   Cài đặt các truy vấn người dùng, câu hỏi và phòng thi.
  */
 #include "db_query.h"
 #include "db.h"
@@ -130,4 +130,109 @@ int db_load_questions(Question *out, int max_count, const char *difficulty){
     }
     sqlite3_finalize(st);
     return (rc == SQLITE_ROW || rc == SQLITE_DONE) ? n : -1;
+}
+
+int db_create_room(const char *name, int creator_id, int num_questions,
+                   int duration_sec, int *out_room_id){
+    if(!name || name[0] == '\0' || creator_id <= 0 ||
+       num_questions <= 0 || duration_sec <= 0)
+        return ST_BAD_REQUEST;
+
+    sqlite3 *db = db_handle();
+    if(!db) return ST_UNKNOWN_ERROR;
+
+    const char *sql =
+        "INSERT INTO rooms (name, creator_id, num_questions, duration_sec) "
+        "VALUES (?, ?, ?, ?);";
+    sqlite3_mutex *mutex = sqlite3_db_mutex(db);
+    if(mutex) sqlite3_mutex_enter(mutex);
+
+    sqlite3_stmt *st = NULL;
+    int result = ST_UNKNOWN_ERROR;
+    if(sqlite3_prepare_v2(db, sql, -1, &st, NULL) == SQLITE_OK &&
+       sqlite3_bind_text(st, 1, name, -1, SQLITE_TRANSIENT) == SQLITE_OK &&
+       sqlite3_bind_int(st, 2, creator_id) == SQLITE_OK &&
+       sqlite3_bind_int(st, 3, num_questions) == SQLITE_OK &&
+       sqlite3_bind_int(st, 4, duration_sec) == SQLITE_OK){
+        int rc = sqlite3_step(st);
+        if(rc == SQLITE_DONE){
+            if(out_room_id)
+                *out_room_id = (int)sqlite3_last_insert_rowid(db);
+            result = ST_OK;
+        } else if((sqlite3_extended_errcode(db) & 0xff) == SQLITE_CONSTRAINT){
+            result = ST_BAD_REQUEST;
+        }
+    }
+
+    sqlite3_finalize(st);
+    if(mutex) sqlite3_mutex_leave(mutex);
+    return result;
+}
+
+int db_update_room_state(int room_id, const char *status){
+    if(room_id <= 0 || !status ||
+       (strcmp(status, "waiting") != 0 &&
+        strcmp(status, "running") != 0 &&
+        strcmp(status, "finished") != 0))
+        return ST_BAD_REQUEST;
+
+    sqlite3 *db = db_handle();
+    if(!db) return ST_UNKNOWN_ERROR;
+
+    sqlite3_mutex *mutex = sqlite3_db_mutex(db);
+    if(mutex) sqlite3_mutex_enter(mutex);
+
+    sqlite3_stmt *st = NULL;
+    int result = ST_UNKNOWN_ERROR;
+    const char *select_sql = "SELECT status FROM rooms WHERE id = ?;";
+    if(sqlite3_prepare_v2(db, select_sql, -1, &st, NULL) != SQLITE_OK)
+        goto done;
+    if(sqlite3_bind_int(st, 1, room_id) != SQLITE_OK)
+        goto done;
+
+    int rc = sqlite3_step(st);
+    if(rc == SQLITE_DONE){
+        result = ST_ROOM_NOT_FOUND;
+        goto done;
+    }
+    if(rc != SQLITE_ROW)
+        goto done;
+
+    const unsigned char *current_text = sqlite3_column_text(st, 0);
+    char current[16];
+    if(!current_text || snprintf(current, sizeof(current), "%s", current_text) >= (int)sizeof(current))
+        goto done;
+    sqlite3_finalize(st);
+    st = NULL;
+
+    if(strcmp(current, status) == 0){
+        result = ST_OK;
+        goto done;
+    }
+    if(!((strcmp(current, "waiting") == 0 && strcmp(status, "running") == 0) ||
+         (strcmp(current, "running") == 0 && strcmp(status, "finished") == 0))){
+        result = ST_ROOM_BAD_STATE;
+        goto done;
+    }
+
+    const char *update_sql =
+        "UPDATE rooms SET status = ?, "
+        "start_time = CASE WHEN ? = 'running' "
+        "THEN COALESCE(start_time, CURRENT_TIMESTAMP) ELSE start_time END "
+        "WHERE id = ? AND status = ?;";
+    if(sqlite3_prepare_v2(db, update_sql, -1, &st, NULL) != SQLITE_OK)
+        goto done;
+    if(sqlite3_bind_text(st, 1, status, -1, SQLITE_TRANSIENT) != SQLITE_OK ||
+       sqlite3_bind_text(st, 2, status, -1, SQLITE_TRANSIENT) != SQLITE_OK ||
+       sqlite3_bind_int(st, 3, room_id) != SQLITE_OK ||
+       sqlite3_bind_text(st, 4, current, -1, SQLITE_TRANSIENT) != SQLITE_OK)
+        goto done;
+    if(sqlite3_step(st) != SQLITE_DONE)
+        goto done;
+    result = sqlite3_changes(db) == 1 ? ST_OK : ST_ROOM_BAD_STATE;
+
+done:
+    sqlite3_finalize(st);
+    if(mutex) sqlite3_mutex_leave(mutex);
+    return result;
 }

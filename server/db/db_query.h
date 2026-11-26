@@ -77,4 +77,29 @@ int db_check_login(const char *username, const char *password);
  */
 int db_load_questions(Question *out, int max_count, const char *difficulty);
 
+/**
+ * @brief Tạo phòng thi trong bảng rooms.
+ * @param name Tên phòng.
+ * @param creator_id ID tài khoản tạo phòng.
+ * @param num_questions Số câu hỏi trong phòng.
+ * @param duration_sec Thời lượng làm bài tính bằng giây.
+ * @param out_room_id Nhận ID mới nếu không NULL.
+ * @return ST_OK; ST_BAD_REQUEST nếu tham số không hợp lệ;
+ *         ST_UNKNOWN_ERROR nếu có lỗi CSDL.
+ */
+int db_create_room(const char *name, int creator_id, int num_questions,
+                   int duration_sec, int *out_room_id);
+
+/**
+ * @brief Cập nhật trạng thái phòng theo chu trình waiting -> running -> finished.
+ *        Chuyển sang running sẽ gán start_time nếu chưa có.
+ * @param room_id ID phòng.
+ * @param status Trạng thái đích: "waiting", "running" hoặc "finished".
+ * @return ST_OK; ST_BAD_REQUEST nếu tham số không hợp lệ;
+ *         ST_ROOM_NOT_FOUND nếu không có phòng;
+ *         ST_ROOM_BAD_STATE nếu chuyển trạng thái không hợp lệ;
+ *         ST_UNKNOWN_ERROR nếu có lỗi CSDL.
+ */
+int db_update_room_state(int room_id, const char *status);
+
 #endif
