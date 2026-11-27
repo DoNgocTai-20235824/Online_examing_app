@@ -60,7 +60,13 @@ int main(int argc, char *argv[]){
             ui_print_user_menu(username);
             int choice = ui_read_choice();
             switch(choice){
-                case 1: case 2: case 3: case 4: case 5: case 6:
+                case 1:
+                    printf("Chức năng đang được phát triển.\n");
+                    break;
+                case 2:
+                    rc = ui_create_room(sockfd);
+                    break;
+                case 3: case 4: case 5: case 6:
                     printf("Chức năng đang được phát triển.\n");
                     break;
                 case 7:
