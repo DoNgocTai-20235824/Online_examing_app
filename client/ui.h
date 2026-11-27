@@ -9,6 +9,7 @@
 
 #define UI_USERNAME_MAX 31
 #define UI_PASSWORD_MAX 64
+#define UI_ROOM_NAME_MAX 63
 
 /**
  * @brief  Đọc một dòng từ bàn phím (bỏ '\n'); dòng quá dài bị bỏ phần thừa.
@@ -46,5 +47,11 @@ int ui_login_screen(int sockfd, char *out_username);
  * @return 1: đã đăng xuất; 0: thất bại; -1: mất kết nối.
  */
 int ui_logout(int sockfd);
+
+/**
+ * @brief  Nhập tên, số câu hỏi và thời lượng rồi gửi OP_CREATE_ROOM.
+ * @return 0: đã xử lý xong; -1: mất kết nối.
+ */
+int ui_create_room(int sockfd);
 
 #endif
